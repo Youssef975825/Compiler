@@ -12,3 +12,4 @@ D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\refint\Compiler
 D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\Compiler.pdb
 D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\Compiler.genruntimeconfig.cache
 D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\ref\Compiler.dll
+D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\Compiler.sourcelink.json

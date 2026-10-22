@@ -43,8 +43,8 @@ public class Scanner
         // Literals
         new Rule(TokenType.Float, @"[0-9]+\.[0-9]+"),
         new Rule(TokenType.Integer, @"[0-9]+"),
-        new Rule(TokenType.String, @"""(?:\\.|[^""\\\r\n])*"""),
-        new Rule(TokenType.Char, @"'(?:\\.|[^'\\\r\n])'"),
+        new Rule(TokenType.String, @"""(?:\\[^\r\n]|[^""\\\r\n])*"""),
+        new Rule(TokenType.Char, @"'(?:\\[^\r\n]|[^'\\\r\n])'"),
 
         // Identifiers
         new Rule(TokenType.Identifier, @"[A-Za-z_][A-Za-z0-9_]*"),
@@ -310,6 +310,13 @@ public class Scanner
                 AddError($"Integer literal '{lexeme}' is too large for Int",
                     tokenLine, tokenColumn, tokenPosition);
             }
+            
+            // a float that does not fit in double comes back as a string
+            if (type == TokenType.Float && value is string)
+            {
+                AddError($"Float literal '{lexeme}' is too large",
+                    tokenLine, tokenColumn, tokenPosition);
+            }
 
             tokens.Add(CreateToken(
                 lexeme,
@@ -497,7 +504,8 @@ public class Scanner
                         lexeme,
                         NumberStyles.Float,
                         CultureInfo.InvariantCulture,
-                        out double number))
+                        out double number) &&
+                    !double.IsInfinity(number))
                 {
                     return number;
                 }
