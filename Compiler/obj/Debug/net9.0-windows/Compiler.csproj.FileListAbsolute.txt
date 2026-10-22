@@ -1,0 +1,14 @@
+D:\test\RynixCompiler\Compiler\Compiler\bin\Debug\net9.0-windows\Compiler.exe
+D:\test\RynixCompiler\Compiler\Compiler\bin\Debug\net9.0-windows\Compiler.deps.json
+D:\test\RynixCompiler\Compiler\Compiler\bin\Debug\net9.0-windows\Compiler.runtimeconfig.json
+D:\test\RynixCompiler\Compiler\Compiler\bin\Debug\net9.0-windows\Compiler.dll
+D:\test\RynixCompiler\Compiler\Compiler\bin\Debug\net9.0-windows\Compiler.pdb
+D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\Compiler.GeneratedMSBuildEditorConfig.editorconfig
+D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\Compiler.AssemblyInfoInputs.cache
+D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\Compiler.AssemblyInfo.cs
+D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\Compiler.csproj.CoreCompileInputs.cache
+D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\Compiler.dll
+D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\refint\Compiler.dll
+D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\Compiler.pdb
+D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\Compiler.genruntimeconfig.cache
+D:\test\RynixCompiler\Compiler\Compiler\obj\Debug\net9.0-windows\ref\Compiler.dll
