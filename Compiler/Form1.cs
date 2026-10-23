@@ -38,6 +38,7 @@ public partial class Form1 : Form
     private static extern int SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
 
     private const int WM_SETREDRAW = 0x000B;
+    
 
     public Form1()
     {
@@ -243,7 +244,7 @@ public partial class Form1 : Form
     private void ShowStats()
     {
         int tokens = _tokens.Count(t => t.Type != TokenType.EOF);
-        int keywords = _tokens.Count(t => t.Type == TokenType.Keyword);
+        int keywords = _tokens.Count(t => t.Type.IsKeyword());
         int identifiers = _tokens.Count(t => t.Type == TokenType.Identifier);
         int numbers = _tokens.Count(t => t.Type == TokenType.Integer
                                          || t.Type == TokenType.Float);
@@ -324,7 +325,7 @@ public partial class Form1 : Form
     {
         return type switch
         {
-            TokenType.Keyword => (KeywordColor, _normalFont),
+            _ when type.IsKeyword() => (KeywordColor, _normalFont),
             TokenType.Integer or TokenType.Float => (NumberColor, _normalFont),
             TokenType.String or TokenType.Char => (StringColor, _normalFont),
             TokenType.Comment => (CommentColor, _italicFont),

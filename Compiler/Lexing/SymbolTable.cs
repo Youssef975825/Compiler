@@ -1,6 +1,6 @@
+using System.Collections.Generic;
 namespace Compiler.Lexing;
 
-using System.Collections.Generic;
 public class SymbolEntry
 {
     public string Name { get; set; } = "";
@@ -10,7 +10,7 @@ public class SymbolEntry
 
 public class SymbolTable
 {
-    private readonly Dictionary<string, SymbolEntry> entries = new Dictionary<string, SymbolEntry>();
+    private readonly Dictionary<string, SymbolEntry> entries = new();
     public IEnumerable<SymbolEntry> Entries => entries.Values;
     public int Count => entries.Count;
 

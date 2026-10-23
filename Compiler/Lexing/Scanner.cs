@@ -1,6 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Compiler.Lexing;
@@ -19,17 +18,37 @@ public class Scanner
         }
     }
 
-    private static readonly HashSet<string> keywords = new()
+    private static readonly Dictionary<string, TokenType> keywords = new()
     {
-        "var", "val", "fun", "class", "if", "else", "while", "for",
-        "in", "return", "true", "false", "null", "new", "print",
-        "input", "break", "continue"
-    };
+        // Reserved words
+        { "var", TokenType.Var },
+        { "val", TokenType.Val },
+        { "fun", TokenType.Fun },
+        { "class", TokenType.Class },
+        { "if", TokenType.If },
+        { "else", TokenType.Else },
+        { "while", TokenType.While },
+        { "for", TokenType.For },
+        { "in", TokenType.In },
+        { "return", TokenType.Return },
+        { "true", TokenType.True },
+        { "false", TokenType.False },
+        { "null", TokenType.Null },
+        { "new", TokenType.New },
+        { "print", TokenType.Print },
+        { "input", TokenType.Input },
+        { "break", TokenType.Break },
+        { "continue", TokenType.Continue },
+        { "init", TokenType.Init },
 
-    // Data types + init
-    private static readonly HashSet<string> specialWords = new()
-    {
-        "Int", "Float", "String", "Bool", "Char", "Array", "Void", "init"
+        // Built-in type names
+        { "Int", TokenType.TypeInt },
+        { "Float", TokenType.TypeFloat },
+        { "String", TokenType.TypeString },
+        { "Bool", TokenType.TypeBool },
+        { "Char", TokenType.TypeChar },
+        { "Array", TokenType.TypeArray },
+        { "Void", TokenType.TypeVoid }
     };
 
     // such as 123abc, 1.2abc and also 1.2.3
@@ -46,7 +65,7 @@ public class Scanner
         new Rule(TokenType.String, @"""(?:\\[^\r\n]|[^""\\\r\n])*"""),
         new Rule(TokenType.Char, @"'(?:\\[^\r\n]|[^'\\\r\n])'"),
 
-        // Identifiers
+        // Identifiers (a keyword is an identifier that is found in the dictionary)
         new Rule(TokenType.Identifier, @"[A-Za-z_][A-Za-z0-9_]*"),
 
         // Two-character operators
@@ -89,21 +108,23 @@ public class Scanner
     public List<Error> Errors { get; } = new();
     public SymbolTable Symbols { get; } = new();
 
-    // true: comments are also returned as TokenType.Comment tokens (for syntax highlighting)
+    // true: comments are also returned as TokenType.Comment Tokens (for syntax highlighting)
     public bool KeepComments { get; set; }
 
-    
+    // State of the current Scan() call.
+    private string source = "";
+    private List<Token> tokens = new();
     private int position;
     private int line;
     private int column;
     private bool lastWasCR;
 
-    public List<Token> Scan(string source)
+    public List<Token> Scan(string input)
     {
-        if (source == null)
-            throw new ArgumentNullException(nameof(source));
+        ArgumentNullException.ThrowIfNull(input);
 
-        // clear the old results
+        source = input;
+        tokens = new List<Token>();
         Errors.Clear();
         Symbols.Clear();
 
@@ -112,174 +133,100 @@ public class Scanner
         column = 1;
         lastWasCR = false;
 
-        List<Token> tokens = new();
-
         while (position < source.Length)
         {
-            if (TrySkipWhitespace(source))
-                continue;
-
-            if (TrySkipComment(source, tokens))
-                continue;
-
-            if (TryReadMalformedNumberOrIdentifier(source, tokens))
-                continue;
-
-            if (TryReadToken(source, tokens))
-                continue;
-
-            char current = source[position];
-
-            if (current == '"' || current == '\'')
+            if (TrySkipWhitespace() ||
+                TrySkipComment() ||
+                TryReadMalformedNumberOrIdentifier() ||
+                TryReadToken())
             {
-                ReadMalformedQuotedLiteral(source, tokens);
                 continue;
             }
 
-            ReadUnknownCharacter(source, tokens);
+            if (source[position] is '"' or '\'')
+                ReadMalformedQuotedLiteral();
+            else
+                ReadUnknownCharacter();
         }
 
-        tokens.Add(CreateToken(
-            "",
-            TokenType.EOF,
-            line,
-            column,
-            position
-        ));
-
+        AddToken("", TokenType.EOF, line, column, position);
         return tokens;
     }
 
-    private bool TrySkipWhitespace(string source)
+    private bool TrySkipWhitespace()
     {
-        if (position >= source.Length ||
-            !char.IsWhiteSpace(source[position]))
-        {
+        if (!char.IsWhiteSpace(source[position]))
             return false;
-        }
 
-        Advance(source, 1);
+        Advance(1);
         return true;
     }
 
-    private bool TrySkipComment(string source, List<Token> tokens)
+    // skip any comment
+    private bool TrySkipComment()
     {
-        // Single-line comment -> // ...
-        if (StartsWith(source, "//"))
-        {
-            int commentPosition = position;
-            int commentLine = line;
-            int commentColumn = column;
+        int startPosition = position;
+        int startLine = line;
+        int startColumn = column;
 
-            Advance(source, 2);
+        // Single-line comment -> // ...
+        if (StartsWith("//"))
+        {
+            Advance(2);
 
             while (position < source.Length &&
                    source[position] != '\n' &&
                    source[position] != '\r')
             {
-                Advance(source, 1);
+                Advance(1);
             }
 
-            if (KeepComments)
-            {
-                string comment = source.Substring(commentPosition, position - commentPosition);
-                tokens.Add(CreateToken(comment, TokenType.Comment,
-                    commentLine, commentColumn, commentPosition, comment));
-            }
-
+            AddCommentToken(startPosition, startLine, startColumn);
             return true;
         }
 
         // Multi-line comment -> /* ... */
-        if (!StartsWith(source, "/*"))
+        if (!StartsWith("/*"))
             return false;
 
-        int startPosition = position;
-        int startLine = line;
-        int startColumn = column;
+        Advance(2);
 
-        Advance(source, 2);
-
-        while (position < source.Length &&
-               !StartsWith(source, "*/"))
-        {
-            Advance(source, 1);
-        }
+        while (position < source.Length && !StartsWith("*/"))
+            Advance(1);
 
         if (position >= source.Length)
         {
-            string text = source.Substring(
-                startPosition,
-                position - startPosition
-            );
-
-            AddError(
+            AddErrorToken(
                 "Unclosed multi-line comment",
-                startLine,
-                startColumn,
-                startPosition
-            );
-
-            tokens.Add(CreateToken(
-                text,
-                TokenType.Error,
-                startLine,
-                startColumn,
-                startPosition,
-                text
-            ));
-
+                source.Substring(startPosition),
+                startLine, startColumn, startPosition);
             return true;
         }
 
-        Advance(source, 2);
-
-        if (KeepComments)
-        {
-            string comment = source.Substring(startPosition, position - startPosition);
-            tokens.Add(CreateToken(comment, TokenType.Comment,
-                startLine, startColumn, startPosition, comment));
-        }
-
+        Advance(2);
+        AddCommentToken(startPosition, startLine, startColumn);
         return true;
     }
 
-    private bool TryReadMalformedNumberOrIdentifier(string source, List<Token> tokens)
+
+    // Read any token
+    private bool TryReadMalformedNumberOrIdentifier()
     {
-        Match match = malformedNumberOrIdentifier.Match(
-            source,
-            position
-        );
+        Match match = malformedNumberOrIdentifier.Match(source, position);
 
         if (!match.Success)
             return false;
 
-        string text = match.Value;
-        int startPosition = position;
-        int startLine = line;
-        int startColumn = column;
+        AddErrorToken(
+            $"Invalid identifier or numeric literal '{match.Value}'",
+            match.Value,
+            line, column, position);
 
-        AddError(
-            $"Invalid identifier or numeric literal '{text}'",
-            startLine,
-            startColumn,
-            startPosition
-        );
-
-        tokens.Add(CreateToken(
-            text,
-            TokenType.Error,
-            startLine,
-            startColumn,
-            startPosition,
-            text
-        ));
-
-        Advance(source, text.Length);
+        Advance(match.Value.Length);
         return true;
     }
 
-    private bool TryReadToken(string source, List<Token> tokens)
+    private bool TryReadToken()
     {
         foreach (Rule rule in rules)
         {
@@ -291,63 +238,45 @@ public class Scanner
             string lexeme = match.Value;
             TokenType type = rule.Type;
 
+            // A reserved word is an identifier that is found in the dictionary.
             if (type == TokenType.Identifier &&
-                (keywords.Contains(lexeme) ||
-                 specialWords.Contains(lexeme)))
+                keywords.TryGetValue(lexeme, out TokenType keywordType))
             {
-                type = TokenType.Keyword;
+                type = keywordType;
             }
 
-            int tokenLine = line;
-            int tokenColumn = column;
-            int tokenPosition = position;
+            // The cursor has not moved yet, so line-column-Position
+            // are still the start of this token.
+            object? value = GetValue(type, lexeme);
 
-            object? value = GetValue(type, lexeme, tokenLine, tokenColumn, tokenPosition);
-
-            // an integer that does not fit in Int32 comes back as a string
+            // an integer that does not fit in int or float comes back as a string
             if (type == TokenType.Integer && value is string)
-            {
-                AddError($"Integer literal '{lexeme}' is too large for Int",
-                    tokenLine, tokenColumn, tokenPosition);
-            }
-            
-            // a float that does not fit in double comes back as a string
+                AddError($"Integer literal '{lexeme}' is too large for Int", line, column, position);
             if (type == TokenType.Float && value is string)
-            {
-                AddError($"Float literal '{lexeme}' is too large",
-                    tokenLine, tokenColumn, tokenPosition);
-            }
+                AddError($"Float literal '{lexeme}' is too large", line, column, position);
 
-            tokens.Add(CreateToken(
-                lexeme,
-                type,
-                tokenLine,
-                tokenColumn,
-                tokenPosition,
-                value
-            ));
+            AddToken(lexeme, type, line, column, position, value);
 
             if (type == TokenType.Identifier)
-                Symbols.Add(lexeme, tokenLine);
+                Symbols.Add(lexeme, line);
 
-            Advance(source, lexeme.Length);
+            Advance(lexeme.Length);
             return true;
         }
 
         return false;
     }
 
-    private void ReadMalformedQuotedLiteral(
-        string source,
-        List<Token> tokens)
+    // A string or char literal that the normal rules rejected
+    // (unclosed, or a char with more than one character).
+    private void ReadMalformedQuotedLiteral()
     {
         int startPosition = position;
         int startLine = line;
         int startColumn = column;
         char quote = source[position];
 
-        // Consume the opening quote.
-        Advance(source, 1);
+        Advance(1); // the opening quote
 
         bool closed = false;
 
@@ -355,122 +284,69 @@ public class Scanner
         {
             char current = source[position];
 
-            // A quoted literal cannot cross a physical line here.
+            // A quoted literal cannot cross a physical line.
             if (current == '\r' || current == '\n')
                 break;
 
-            // Skip an escaped character so an escaped quote
-            // is not mistaken for the closing quote.
+            // Skip the backslash and the escaped character,
+            // so an escaped quote is not mistaken for the closing quote.
             if (current == '\\')
             {
-                Advance(source, 1);
+                Advance(1);
 
                 if (position < source.Length &&
                     source[position] != '\r' &&
                     source[position] != '\n')
                 {
-                    Advance(source, 1);
+                    Advance(1);
                 }
 
                 continue;
             }
 
+            Advance(1);
+
             if (current == quote)
             {
-                Advance(source, 1);
                 closed = true;
                 break;
             }
-
-            Advance(source, 1);
         }
 
-        string text = source.Substring(
-            startPosition,
-            position - startPosition
-        );
+        string kind = quote == '"' ? "string" : "character";
+        string message = closed ? $"Invalid {kind} literal" : $"Unclosed {kind} literal";
+        string text = source.Substring(startPosition, position - startPosition);
 
-        string message;
-
-        if (!closed)
-        {
-            message = quote == '"'
-                ? "Unclosed string literal"
-                : "Unclosed character literal";
-        }
-        else
-        {
-            message = quote == '"'
-                ? "Invalid string literal"
-                : "Invalid character literal";
-        }
-
-        AddError(message, startLine, startColumn, startPosition);
-
-        tokens.Add(CreateToken(
-            text,
-            TokenType.Error,
-            startLine,
-            startColumn,
-            startPosition,
-            text
-        ));
+        AddErrorToken(message, text, startLine, startColumn, startPosition);
     }
 
-    private void ReadUnknownCharacter(string source, List<Token> tokens)
+    private void ReadUnknownCharacter()
     {
-        char current = source[position];
+        string text = source[position].ToString();
 
-        int errorLine = line;
-        int errorColumn = column;
-        int errorPosition = position;
-
-        string text = current.ToString();
-
-        AddError(
-            $"Invalid character '{text}'",
-            errorLine,
-            errorColumn,
-            errorPosition
-        );
-
-        tokens.Add(CreateToken(
-            text,
-            TokenType.Error,
-            errorLine,
-            errorColumn,
-            errorPosition,
-            text
-        ));
-
-        Advance(source, 1);
+        AddErrorToken($"Invalid character '{text}'", text, line, column, position);
+        Advance(1);
     }
 
-    private bool StartsWith(string source, string text)
+    // cursor
+
+    private bool StartsWith(string text)
     {
-        return source.Length - position >= text.Length &&
-               string.Compare(
-                   source,
-                   position,
-                   text,
-                   0,
-                   text.Length,
-                   StringComparison.Ordinal
-               ) == 0;
+        return source.AsSpan(position).StartsWith(text, StringComparison.Ordinal);
     }
 
-    private void Advance(string source, int count)
+    // The ONLY place where the cursor moves: keeps line/column correct.
+    // "\r\n" counts as one line break, a lone "\r" or "\n" as one too.
+    private void Advance(int count)
     {
         for (int i = 0; i < count && position < source.Length; i++)
         {
-            char current = source[position];
-            position++;
+            char current = source[position++];
 
             if (current == '\r')
             {
                 line++;
                 column = 1;
-                lastWasCR = true;
             }
             else if (current == '\n')
             {
@@ -478,33 +354,29 @@ public class Scanner
                     line++;
 
                 column = 1;
-                lastWasCR = false;
             }
             else
             {
                 column++;
-                lastWasCR = false;
             }
+
+            lastWasCR = current == '\r';
         }
     }
 
-    private object? GetValue(TokenType type, string lexeme,
-        int tokenLine, int tokenColumn, int tokenPosition)
+    // values
+
+    private object? GetValue(TokenType type, string lexeme)
     {
         switch (type)
         {
             case TokenType.Integer:
-                if (int.TryParse(lexeme, out int integer))
-                    return integer;
-                // Keep the lexeme if it is outside Int32's range.
-                return lexeme;
+                // outside Int32's range: keep the lexeme (the caller reports it)
+                return int.TryParse(lexeme, out int integer) ? integer : lexeme;
 
             case TokenType.Float:
-                if (double.TryParse(
-                        lexeme,
-                        NumberStyles.Float,
-                        CultureInfo.InvariantCulture,
-                        out double number) &&
+                if (double.TryParse(lexeme, NumberStyles.Float,
+                        CultureInfo.InvariantCulture, out double number) &&
                     !double.IsInfinity(number))
                 {
                     return number;
@@ -513,32 +385,22 @@ public class Scanner
                 return lexeme;
 
             case TokenType.String:
-            {
-                string text = DecodeEscapes(
-                    lexeme.Substring(1, lexeme.Length - 2),
-                    tokenLine, tokenColumn, tokenPosition);
-                return text;
-            }
+                return DecodeEscapes(lexeme[1..^1]);
 
             case TokenType.Char:
             {
-                string text = DecodeEscapes(
-                    lexeme.Substring(1, lexeme.Length - 2),
-                    tokenLine, tokenColumn, tokenPosition);
+                string text = DecodeEscapes(lexeme[1..^1]);
                 return text.Length > 0 ? text[0] : '\0';
             }
 
-            case TokenType.Keyword:
-                if (lexeme == "true")
-                    return true;
+            case TokenType.True:
+                return true;
 
-                if (lexeme == "false")
-                    return false;
+            case TokenType.False:
+                return false;
 
-                if (lexeme == "null")
-                    return null;
-
-                return lexeme;
+            case TokenType.Null:
+                return null;
 
             default:
                 return lexeme;
@@ -546,11 +408,11 @@ public class Scanner
     }
 
     // Turns \n \t \" ... into real characters and reports unknown escapes.
-    // raw = the text between the quotes. Literals never span lines, so
-    // column = tokenColumn + index of the backslash inside the lexeme.
-    private string DecodeEscapes(string raw, int tokenLine, int tokenColumn, int tokenPosition)
+    // raw = the text between the quotes. Literals never span lines, so the
+    // column of a backslash = token column + its index inside the lexeme.
+    private string DecodeEscapes(string raw)
     {
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
 
         for (int i = 0; i < raw.Length; i++)
         {
@@ -575,8 +437,7 @@ public class Scanner
                     sb.Append(e);
                     break;
                 default:
-                    AddError($"Unknown escape sequence '\\{e}'",
-                        tokenLine, tokenColumn + i, tokenPosition + i);
+                    AddError($"Unknown escape sequence '\\{e}'", line, column + i, position + i);
                     sb.Append(e);
                     break;
             }
@@ -585,7 +446,9 @@ public class Scanner
         return sb.ToString();
     }
 
-    private Token CreateToken(
+    // output
+
+    private void AddToken(
         string lexeme,
         TokenType type,
         int tokenLine,
@@ -593,21 +456,19 @@ public class Scanner
         int tokenPosition,
         object? value = null)
     {
-        return new Token(
-            lexeme,
-            type,
-            tokenLine,
-            tokenColumn,
-            tokenPosition,
-            value
-        );
+        tokens.Add(new Token(lexeme, type, tokenLine, tokenColumn, tokenPosition, value));
     }
 
-    private void AddError(
-        string message,
-        int errorLine,
-        int errorColumn,
-        int errorPosition)
+    private void AddCommentToken(int startPosition, int startLine, int startColumn)
+    {
+        if (!KeepComments)
+            return;
+
+        string comment = source.Substring(startPosition, position - startPosition);
+        AddToken(comment, TokenType.Comment, startLine, startColumn, startPosition, comment);
+    }
+
+    private void AddError(string message, int errorLine, int errorColumn, int errorPosition)
     {
         Errors.Add(new Error
         {
@@ -616,5 +477,12 @@ public class Scanner
             Column = errorColumn,
             Position = errorPosition
         });
+    }
+
+    // Reports an error AND adds an Error token that holds the bad text.
+    private void AddErrorToken(string message, string text, int startLine, int startColumn, int startPosition)
+    {
+        AddError(message, startLine, startColumn, startPosition);
+        AddToken(text, TokenType.Error, startLine, startColumn, startPosition, text);
     }
 }
