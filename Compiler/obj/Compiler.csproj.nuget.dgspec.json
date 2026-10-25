@@ -1,25 +1,27 @@
 {
   "format": 1,
   "restore": {
-    "D:\\test\\RynixCompiler\\Compiler\\Compiler\\Compiler.csproj": {}
+    "C:\\Users\\Computer\\source\\repos\\Youssef975825\\Compiler\\Compiler\\Compiler.csproj": {}
   },
   "projects": {
-    "D:\\test\\RynixCompiler\\Compiler\\Compiler\\Compiler.csproj": {
+    "C:\\Users\\Computer\\source\\repos\\Youssef975825\\Compiler\\Compiler\\Compiler.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\test\\RynixCompiler\\Compiler\\Compiler\\Compiler.csproj",
+        "projectUniqueName": "C:\\Users\\Computer\\source\\repos\\Youssef975825\\Compiler\\Compiler\\Compiler.csproj",
         "projectName": "Compiler",
-        "projectPath": "D:\\test\\RynixCompiler\\Compiler\\Compiler\\Compiler.csproj",
-        "packagesPath": "C:\\Users\\IT\\.nuget\\packages\\",
-        "outputPath": "D:\\test\\RynixCompiler\\Compiler\\Compiler\\obj\\",
+        "projectPath": "C:\\Users\\Computer\\source\\repos\\Youssef975825\\Compiler\\Compiler\\Compiler.csproj",
+        "packagesPath": "C:\\Users\\Computer\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Computer\\source\\repos\\Youssef975825\\Compiler\\Compiler\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\IT\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\Computer\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net9.0-windows"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -37,9 +39,9 @@
         "restoreAuditProperties": {
           "enableAudit": "true",
           "auditLevel": "low",
-          "auditMode": "all"
+          "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "10.0.400"
       },
       "frameworks": {
         "net9.0-windows": {
@@ -56,6 +58,24 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[9.0.20, 9.0.20]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Host.win-x64",
+              "version": "[9.0.20, 9.0.20]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[9.0.20, 9.0.20]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[9.0.20, 9.0.20]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
@@ -64,7 +84,7 @@
               "privateAssets": "none"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Users\\IT\\.dotnet\\sdk\\9.0.100/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.401/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

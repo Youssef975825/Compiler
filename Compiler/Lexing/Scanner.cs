@@ -41,7 +41,7 @@ public class Scanner
         { "continue", TokenType.Continue },
         { "init", TokenType.Init },
 
-        // Built-in type names
+        // Data type names
         { "Int", TokenType.TypeInt },
         { "Float", TokenType.TypeFloat },
         { "String", TokenType.TypeString },
@@ -51,7 +51,8 @@ public class Scanner
         { "Void", TokenType.TypeVoid }
     };
 
-    // such as 123abc, 1.2abc and also 1.2.3
+    // Invalid Number or Identifier 
+    // such as -> 1.2.3 or 132abc
     private static readonly Regex malformedNumberOrIdentifier = new(
         @"\G(?:[0-9]+(?:\.[0-9]+)*[A-Za-z_][A-Za-z0-9_]*|[0-9]+(?:\.[0-9]+){2,})",
         RegexOptions.CultureInvariant
@@ -65,13 +66,16 @@ public class Scanner
         new Rule(TokenType.String, @"""(?:\\[^\r\n]|[^""\\\r\n])*"""),
         new Rule(TokenType.Char, @"'(?:\\[^\r\n]|[^'\\\r\n])'"),
 
-        // Identifiers (a keyword is an identifier that is found in the dictionary)
+        // Identifiers
         new Rule(TokenType.Identifier, @"[A-Za-z_][A-Za-z0-9_]*"),
 
         // Two-character operators
-        // Longer operators must appear before the shorter ones:
-        // if "=" came first, "x == y" would be scanned as AssignAssign
-        // instead of EqualEqual.
+        /*
+         * two character opertor must appear before one character.
+         * if "=" came first, "x == y" -> would be scanned as AssignAssign.
+         * but the correct is EqualEqual.
+         */
+        
         new Rule(TokenType.EqualEqual, @"=="),
         new Rule(TokenType.NotEqual, @"!="),
         new Rule(TokenType.AndAnd, @"&&"),
@@ -108,10 +112,10 @@ public class Scanner
     public List<Error> Errors { get; } = new();
     public SymbolTable Symbols { get; } = new();
 
-    // true: comments are also returned as TokenType.Comment Tokens (for syntax highlighting)
+    // made for comments highlighting if it is true (single or multiple comment).
     public bool KeepComments { get; set; }
 
-    // State of the current Scan() call.
+    // source code for Scan function.
     private string source = "";
     private List<Token> tokens = new();
     private int position;
@@ -123,6 +127,8 @@ public class Scanner
     {
         ArgumentNullException.ThrowIfNull(input);
 
+        // if I want to scan multiple times.
+        // reset every time on calling Scan Function.
         source = input;
         tokens = new List<Token>();
         Errors.Clear();
@@ -135,6 +141,13 @@ public class Scanner
 
         while (position < source.Length)
         {
+            /*
+             * this order is mandatory.
+             * -> _____var -> would not match any of the keys in the Dictionary.
+             * -> /* a -> would took as a Character.
+             * -> must read before the Right Identifier or Number.
+             * -> read existing token.
+             */
             if (TrySkipWhitespace() ||
                 TrySkipComment() ||
                 TryReadMalformedNumberOrIdentifier() ||
@@ -143,12 +156,15 @@ public class Scanner
                 continue;
             }
 
+            // Read String or Character.
             if (source[position] is '"' or '\'')
                 ReadMalformedQuotedLiteral();
+            // unKnownChararter -> Error List
             else
                 ReadUnknownCharacter();
         }
 
+        // The source code has ended.
         AddToken("", TokenType.EOF, line, column, position);
         return tokens;
     }
@@ -169,7 +185,7 @@ public class Scanner
         int startLine = line;
         int startColumn = column;
 
-        // Single-line comment -> // ...
+        // Single-line comment
         if (StartsWith("//"))
         {
             Advance(2);
@@ -185,7 +201,7 @@ public class Scanner
             return true;
         }
 
-        // Multi-line comment -> /* ... */
+        // Multi-line comment
         if (!StartsWith("/*"))
             return false;
 
@@ -214,6 +230,7 @@ public class Scanner
     {
         Match match = malformedNumberOrIdentifier.Match(source, position);
 
+        // True Identifier or Number.
         if (!match.Success)
             return false;
 
@@ -238,7 +255,8 @@ public class Scanner
             string lexeme = match.Value;
             TokenType type = rule.Type;
 
-            // A reserved word is an identifier that is found in the dictionary.
+            // A reserved word could be available as Identifier
+            // if it mathches the Identifier RE and it exist in the Dictionary the it is a reserved word.
             if (type == TokenType.Identifier &&
                 keywords.TryGetValue(lexeme, out TokenType keywordType))
             {
@@ -249,7 +267,7 @@ public class Scanner
             // are still the start of this token.
             object? value = GetValue(type, lexeme);
 
-            // an integer that does not fit in int or float comes back as a string
+            // take assurece about limitation of float and Integer.
             if (type == TokenType.Integer && value is string)
                 AddError($"Integer literal '{lexeme}' is too large for Int", line, column, position);
             if (type == TokenType.Float && value is string)
@@ -329,7 +347,6 @@ public class Scanner
     }
 
     // cursor
-
     private bool StartsWith(string text)
     {
         return source.AsSpan(position).StartsWith(text, StringComparison.Ordinal);
@@ -365,7 +382,6 @@ public class Scanner
     }
 
     // values
-
     private object? GetValue(TokenType type, string lexeme)
     {
         switch (type)
@@ -385,6 +401,7 @@ public class Scanner
                 return lexeme;
 
             case TokenType.String:
+                // remove the Quotations.
                 return DecodeEscapes(lexeme[1..^1]);
 
             case TokenType.Char:
