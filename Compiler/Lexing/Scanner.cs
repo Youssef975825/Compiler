@@ -267,11 +267,26 @@ public class Scanner
             // are still the start of this token.
             object? value = GetValue(type, lexeme);
 
+
             // take assurece about limitation of float and Integer.
             if (type == TokenType.Integer && value is string)
                 AddError($"Integer literal '{lexeme}' is too large for Int", line, column, position);
             if (type == TokenType.Float && value is string)
                 AddError($"Float literal '{lexeme}' is too large", line, column, position);
+
+            // a number that does not fit comes back as a string:
+            // report it and emit an Error token instead of a number token
+            if ((type == TokenType.Integer || type == TokenType.Float) && value is string)
+            {
+                string message = type == TokenType.Integer
+                    ? $"Integer literal '{lexeme}' is too large for Int"
+                    : $"Float literal '{lexeme}' is too large";
+
+                AddErrorToken(message, lexeme, line, column, position);
+                Advance(lexeme.Length);
+                return true;
+            }
+
 
             AddToken(lexeme, type, line, column, position, value);
 
@@ -388,7 +403,9 @@ public class Scanner
         {
             case TokenType.Integer:
                 // outside Int32's range: keep the lexeme (the caller reports it)
-                return int.TryParse(lexeme, out int integer) ? integer : lexeme;
+                return int.TryParse(lexeme, NumberStyles.None,
+                    CultureInfo.InvariantCulture, out int integer)
+                    ? integer : lexeme;
 
             case TokenType.Float:
                 if (double.TryParse(lexeme, NumberStyles.Float,
@@ -464,7 +481,6 @@ public class Scanner
     }
 
     // output
-
     private void AddToken(
         string lexeme,
         TokenType type,
